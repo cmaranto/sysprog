@@ -20,9 +20,10 @@ typedef struct {
     char* infile;
 } redir_t;
 
-int command_stoa(char **command, char *comamand_text);
+int command_stoa(char **command, char *comamand_text, char *divider);
 void mcd(const char* dir);
 char** getopt_r(int token_count, char* command[], redir_t* redir);
+void execute(int token_count, char **command);
 
 int main(void) {
     //ignore signals in main
@@ -32,54 +33,54 @@ int main(void) {
     size_t line_size = CMD_LENGTH;
     char *input_line = (char *) malloc(CMD_LENGTH + 1);    
     char *command[TOKENS];
+    char *pcommands[TOKENS];
     int cmd_pid, cmd_status, execstatus;
     const char *exit_str = "exit";
     const char *cd_str = "cd";
 
-    redir_t redir;
+    
     int token_count = 0;
-
+    int command_count = 0;
 
     while(1) {
         printf("|msh> ");
         getline(&input_line, &line_size, stdin);
-        token_count = command_stoa(command, input_line);
+        command_count = command_stoa(pcommands,input_line,"|");    
 
         if(strncmp(input_line,exit_str,strlen(exit_str)) == 0){
             //handle exit command
             exit(0);
         }else if(strncmp(input_line,cd_str,strlen(cd_str)) == 0){
-            mcd(command[1]);
+            mcd(pcommands[1]);
             continue;
         }
 
-        redir.redin = 0;
-        redir.redout = 0;
-        char **red_command = getopt_r(token_count,command, &redir);
-
-
         cmd_pid = fork();
         if (cmd_pid == 0) {
-            //restore signal in child
-            signal(SIGINT,SIG_DFL);
-            signal(SIGQUIT,SIG_DFL);
-
-
-            //redirect
-            if(redir.redin){
-                close(0);
-                open(redir.infile,O_RDONLY);
+            if(command_count - 1 == 0){
+                token_count = command_stoa(command, pcommands[0], " ");
+                execute(token_count, command); 
+                continue;
             }
-            if(redir.redout){
-                close(1);
-                open(redir.outfile,O_WRONLY | O_CREAT | O_APPEND, S_IRWXU);
-            }
+            
+            int the_pipe[2];
+            int fd, pid;
+            pipe(the_pipe);
 
-
-            if(execvp(command[0], red_command) == -1){
-                //handle invalid command
-                exit(-1);
-            }            
+            pid = fork();
+            if(pid > 0){
+                close(the_pipe[1]);
+                dup2(the_pipe[0],0);
+                close(the_pipe[0]);
+                token_count = command_stoa(command, pcommands[1], " ");
+                execute(token_count, command); 
+            }else{
+                close(the_pipe[0]);
+                dup2(the_pipe[1],1);
+                close(the_pipe[1]);
+                token_count = command_stoa(command, pcommands[0], " ");
+                execute(token_count, command); 
+            }       
         }
         else {
             wait(&cmd_status);
@@ -88,18 +89,46 @@ int main(void) {
     free(input_line);
 }
 
-int command_stoa(char **command, char *command_text) {
-    char* token =strtok(command_text, " ");
+void execute(int token_count, char **command){
+    //restore signal in child
+    signal(SIGINT,SIG_DFL);
+    signal(SIGQUIT,SIG_DFL);
+
+    redir_t redir;
+    redir.redin = 0;
+    redir.redout = 0;
+    char **red_command = getopt_r(token_count,command, &redir);
+
+    //redirect
+    if(redir.redin){
+        close(0);
+        open(redir.infile,O_RDONLY);
+    }
+    if(redir.redout){
+        close(1);
+        open(redir.outfile,O_WRONLY | O_CREAT | O_APPEND, S_IRWXU);
+    }   
+
+    if(execvp(command[0], red_command) == -1){
+        //handle invalid command
+        exit(-1);
+    } 
+}
+
+int command_stoa(char **command, char *command_text, char *divider) {
+    char* token =strtok(command_text, divider);
     int token_index = 0;
     while(token != NULL) {
         command[token_index] = token;
-        token = strtok(NULL, " ");
+        token = strtok(NULL, divider);
         token_index++;
     }
 
     char *last_token = command[token_index -1];
     int length = strlen(last_token);
-    last_token[length -1] = 0;
+    if(last_token[length-1] == '\n'){
+        last_token[length -1] = 0;
+    }
     command[token_index] = 0;
     return token_index;
 }

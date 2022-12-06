@@ -31,13 +31,15 @@ int main(int argc, char *argv[]) {
             if(strcmp(entry->d_name,".") == 0){
                 parent_ino = entry->d_ino;
             }else if(entry->d_ino == curr_ino){
-                if(strcmp(entry->d_name,"..") != 0)
+                if(strcmp(entry->d_name,"..") != 0){
                     printf("%s ",entry->d_name);
+                }else{
+                    printf("/\n");
+                }
             }
         }
         closedir(dir);
     }while(curr_ino != parent_ino);
-    printf("\n");
 
     return 0;
 }

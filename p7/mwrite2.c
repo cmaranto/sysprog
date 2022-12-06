@@ -17,8 +17,8 @@ int user_check(const char *username, const char *dev){
     
     //read/print who structs into buffer
     while(fread(&_utmp,sizeof(struct utmp),1,fd)){
-        if(strcmp(dev,_utmp.ut_line) == 0 &&
-            strcmp(username, _utmp.ut_user) == 0)
+        if(strcmp(dev,&_utmp.ut_line[0]) == 0 &&
+            strcmp(username, &_utmp.ut_user[0]) == 0)
         return 0;
     }
 
@@ -36,9 +36,9 @@ int hostname_lookup(const char *dev, char *hostname){
     
     //read/print who structs into buffer
     while(fread(&_utmp,sizeof(struct utmp),1,fd)){
-        if(strcmp(dev,_utmp.ut_line) == 0){
+        if(strcmp(dev,&_utmp.ut_line[0]) == 0){
             if(strcmp(_utmp.ut_host,"127.0.0.1") != 0){
-                strcpy(hostname,_utmp.ut_host);
+                strcpy(hostname,&_utmp.ut_host[0]);
                 return 0;
             }
         }
@@ -103,10 +103,10 @@ int main(int argc, char *argv[]) {
         write(fd,(void*)header,strlen(header));
 
         char buf;
-        for(;;){
-            read(STDIN_FILENO,(void*)&buf,1);
+        while(read(STDIN_FILENO,(void*)&buf,1) == 1){
             write(fd,(void*)&buf,1);
         }
+        write(fd,"EOF\n",4);
     }else{
         printf("write: %s is not logged in on %s\n",argv[1],argv[2]);
     }

@@ -13,8 +13,8 @@ int user_check(const char *username, const char *dev){
     
     //read/print who structs into buffer
     while(fread(&_utmp,sizeof(struct utmp),1,fd)){
-        if(strcmp(dev,_utmp.ut_line) == 0 &&
-        strcmp(username, _utmp.ut_user) == 0)
+        if(strcmp(dev,&_utmp.ut_line[0]) == 0 &&
+        strcmp(username,&_utmp.ut_user[0]) == 0)
         return 0;
     }
 
@@ -30,15 +30,14 @@ int main(int argc, char *argv[]) {
     char dev[11];
 
     sprintf(dev,"/dev/%s",argv[2]);
-    printf("%s\n",dev);
 
     if(user_check(argv[1],argv[2]) == 0){
         int fd = open(dev,O_WRONLY);
         char buf;
-        for(;;){
-            read(STDIN_FILENO,(void*)&buf,1);
+        while(read(STDIN_FILENO,(void*)&buf,1) == 1){
             write(fd,(void*)&buf,1);
         }
+        write(fd,"EOF\n",4);
     }else{
         printf("write: %s is not logged in on %s\n",argv[1],argv[2]);
     }

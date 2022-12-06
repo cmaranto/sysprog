@@ -11,10 +11,10 @@ int main(int argc, char *argv[]) {
     int fd = open(dev,O_WRONLY);
 
     char buf;
-    for(;;){
-        read(STDIN_FILENO,(void*)&buf,1);
+    while(read(STDIN_FILENO,(void*)&buf,1) == 1){
         write(fd,(void*)&buf,1);
     }
+    write(fd,"EOF\n",4);
 
     return 0;
 }

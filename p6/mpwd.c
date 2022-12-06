@@ -11,6 +11,8 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
+int has_children = 0;
+
 void print_path_to_current_directory(){
     struct dirent *entry;
     unsigned long curr_ino,parent_ino;
@@ -41,11 +43,12 @@ void print_path_to_current_directory(){
     //in root?
     if(curr_ino == parent_ino){
         //print root name and return
-        if(strcmp(curr_name,"..") != 0){
-            printf("%s/",curr_name);
+        if(!has_children){
+            printf("/");
         }
         return;
     }else{
+        ++has_children;
         //recursive call        
         print_path_to_current_directory();
         //print / name of curr dir
